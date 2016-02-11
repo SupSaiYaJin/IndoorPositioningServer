@@ -18,11 +18,14 @@ public class AuthorityFilter implements Filter{
     }
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter
+    (ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+    throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpSession session = request.getSession();
-        if(session.getAttribute("username") != null)
+        if(session.getAttribute("username") != null) {
             filterChain.doFilter(servletRequest, servletResponse);
+        }
         else {
             servletResponse.setContentType("application/json");
             PrintWriter out = servletResponse.getWriter();

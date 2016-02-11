@@ -22,12 +22,14 @@ import java.net.URLDecoder;
 @MultipartConfig
 public class UploadMapServlet extends HttpServlet{
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String sceneName = URLDecoder.decode(req.getHeader("sceneName"), "utf-8");
         float scale = Float.parseFloat(req.getHeader("scale"));
         Part part = req.getPart("sceneMap");
-        boolean updateSucceed = databaseManager.updateSceneMap(sceneName, scale, part.getInputStream());
+        boolean updateSucceed = databaseManager.updateSceneMap
+                (sceneName, scale, part.getInputStream());
 
         resp.setContentType("application/json");
         String responseJSON = String.format("{\"uploadSucceed\":%b}", updateSucceed);

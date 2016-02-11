@@ -25,8 +25,9 @@ public class WifiFingerprint {
     public WifiFingerprint(float[] location, String[] mac, float[] rssi) {
         mLocation = location;
         mFingerprintMap = new HashMap<>();
-        for(int i = 0; i < mac.length; ++i)
+        for(int i = 0; i < mac.length; ++i) {
             mFingerprintMap.put(mac[i], rssi[i]);
+        }
     }
 
     /**
@@ -39,11 +40,12 @@ public class WifiFingerprint {
         float EuclideanDist = 0;
         for(int i = 0; i < mac.length; ++i) {
             Float rssiFingerprint = mFingerprintMap.get(mac[i]);
-            if(rssiFingerprint != null)
+            if(rssiFingerprint != null) {
                 EuclideanDist += Math.pow(rssiFingerprint - rssi[i], 2);
-            else
+            }
+            else {
                 EuclideanDist += Math.pow(NONE_RSSI - rssi[i], 2);
-
+            }
         }
         EuclideanDist = (float) Math.sqrt(EuclideanDist);
         return EuclideanDist;

@@ -27,12 +27,14 @@ public class Algorithms {
      * @return 返回定位结果坐标
      */
     public static float[]  locateOnWifi(String sceneName, String mac, String rssi) {
-        List<WifiFingerprint> wifiDataList = DatabaseManager.getInstance().getWifiFingerprint(sceneName);
+        List<WifiFingerprint> wifiDataList = DatabaseManager.getInstance()
+                .getWifiFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
         for (WifiFingerprint wifiFingerprint : wifiDataList) {
             float location_x = wifiFingerprint.getLocation()[0];
             float location_y = wifiFingerprint.getLocation()[1];
-            float euclideanDist = wifiFingerprint.getEuclideanDist(macToArray(mac), rssiToArray(rssi));
+            float euclideanDist = wifiFingerprint.getEuclideanDist(macToArray(mac),
+                    rssiToArray(rssi));
             EuclideanDistList.add(new EuclideanDist(location_x, location_y, euclideanDist));
         }
         return calculateByWeight(EuclideanDistList);
@@ -45,8 +47,10 @@ public class Algorithms {
      * @param geomagnetic_z 采集到的Z方向磁场强度
      * @return 返回定位结果坐标
      */
-    public static float[] locateOnGeomagnetic(String sceneName, float geomagnetic_y, float geomagnetic_z) {
-        List<GeoFingerprint> geoDataList = DatabaseManager.getInstance().getGeoFingerprint(sceneName);
+    public static float[] locateOnGeomagnetic
+    (String sceneName, float geomagnetic_y, float geomagnetic_z) {
+        List<GeoFingerprint> geoDataList = DatabaseManager.getInstance()
+                .getGeoFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
         for (GeoFingerprint geoFingerprint : geoDataList) {
             float location_x = geoFingerprint.getLocation()[0];
@@ -66,7 +70,8 @@ public class Algorithms {
      * @param geomagnetic_z 采集到的Z方向磁场强度
      * @return 返回定位结果坐标
      */
-    public static float[] locateOnAll(String sceneName, String mac, String rssi, float geomagnetic_y, float geomagnetic_z) {
+    public static float[] locateOnAll
+    (String sceneName, String mac, String rssi, float geomagnetic_y, float geomagnetic_z) {
         float[] wifiResult = locateOnWifi(sceneName, mac, rssi);
         float[] geoResult = locateOnGeomagnetic(sceneName, geomagnetic_y, geomagnetic_z);
         float[] result = new float[2];
@@ -83,8 +88,9 @@ public class Algorithms {
      * @return 返回定位结果坐标
      */
     private static float[] calculateByWeight(List<EuclideanDist> EuclideanDistList) {
-        if(EuclideanDistList.size() < K)
+        if(EuclideanDistList.size() < K) {
             return new float[]{-1, -1};
+        }
         float[] result = new float[2];
         //将List中前K小的欧氏距离放在List的最前面
         findKNearestEuclideanDist(EuclideanDistList, 0, EuclideanDistList.size() - 1, K);
@@ -102,8 +108,9 @@ public class Algorithms {
         }
         //K个坐标的权重,欧氏距离越小的权重越大
         float[] weight = new float[K];
-        for(int i = 0; i < K; ++i)
+        for(int i = 0; i < K; ++i) {
             weight[i] = (euclideanDistsSum - euclideanDists[i]) / (2 * (euclideanDistsSum));
+        }
         //将权重分配给结果
         for (int i = 0; i < K; ++i) {
             result[0] += weight[i] * locations[i][0];
@@ -120,17 +127,22 @@ public class Algorithms {
      * @param end 终止位置
      * @param K 常量K
      */
-    private static void findKNearestEuclideanDist (List<EuclideanDist> EuclideanDistList, int start, int end, int K) {
-        if(end - start + 1 < K)
+    private static void findKNearestEuclideanDist
+    (List<EuclideanDist> EuclideanDistList, int start, int end, int K) {
+        if(end - start + 1 < K) {
             return;
+        }
         if(start < end) {
             int mid = partition(EuclideanDistList, start, end);
-            if(mid - start + 1 == K)
+            if(mid - start + 1 == K) {
                 return;
-            if(mid - start + 1 > K)
+            }
+            if(mid - start + 1 > K) {
                 findKNearestEuclideanDist(EuclideanDistList, start, mid - 1, K);
-            else
+            }
+            else {
                 findKNearestEuclideanDist(EuclideanDistList, mid + 1, end, K - (mid - start + 1));
+            }
         }
     }
 
@@ -160,7 +172,8 @@ public class Algorithms {
      */
     private static void setDecimalScale(float[] nums) {
         for(int i = 0; i < nums.length; ++i)
-            nums[i] = new BigDecimal(nums[i]).setScale(RETAIN_DECIMAL, BigDecimal.ROUND_HALF_UP).floatValue();
+            nums[i] = new BigDecimal(nums[i])
+                    .setScale(RETAIN_DECIMAL, BigDecimal.ROUND_HALF_UP).floatValue();
     }
 
     /**
@@ -180,8 +193,9 @@ public class Algorithms {
     public static float[] rssiToArray(String rssi) {
         String[] rssiStringArray = rssi.split(",");
         float[] rssiFloatArray = new float[rssiStringArray.length];
-        for(int i = 0; i < rssiStringArray.length; ++i)
+        for(int i = 0; i < rssiStringArray.length; ++i) {
             rssiFloatArray[i] = Float.parseFloat(rssiStringArray[i]);
+        }
         return rssiFloatArray;
     }
 }

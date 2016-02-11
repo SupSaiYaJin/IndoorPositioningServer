@@ -18,7 +18,8 @@ import java.io.PrintWriter;
 @WebServlet(name = "RegisterServlet", urlPatterns = "/register")
 public class RegisterServlet extends HttpServlet {
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String username = req.getParameter("username");
         String password = req.getParameter("password");

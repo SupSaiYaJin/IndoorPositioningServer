@@ -23,7 +23,8 @@ public class LoginServlet extends HttpServlet{
     private static final int MAX_INACTIVE_INTERVAL = 60 * 30;
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String username = req.getParameter("username");
         String password = req.getParameter("password");

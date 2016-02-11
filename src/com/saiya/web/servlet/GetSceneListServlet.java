@@ -20,7 +20,8 @@ import java.util.List;
 @WebServlet(name = "GetSceneListServlet", urlPatterns = "/positioning/getscenelist")
 public class GetSceneListServlet extends HttpServlet{
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         List<SceneInfo> sceneMap = databaseManager.getSceneList();
         resp.setContentType("application/json; charset=utf-8");

@@ -36,7 +36,8 @@ public class LocateServlet extends HttpServlet {
     public static final int USE_GEOMAGNETIC_ONLY = 2;
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         req.setCharacterEncoding("utf-8");
         String sceneName = req.getParameter("sceneName");
         int locateType = Integer.parseInt(req.getParameter("locateType"));
@@ -70,7 +71,8 @@ public class LocateServlet extends HttpServlet {
         }
 
         resp.setContentType("application/json");
-        String responseJSON = String.format("{\"result_x\":%f, \"result_y\":%f}", result[0], result[1]);
+        String responseJSON = String.format
+                ("{\"result_x\":%f, \"result_y\":%f}", result[0], result[1]);
         PrintWriter out = resp.getWriter();
         out.print(responseJSON);
         out.flush();

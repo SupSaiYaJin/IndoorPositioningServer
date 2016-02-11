@@ -33,7 +33,8 @@ public class GeoFingerprint {
      * @return 返回当前地磁指纹位置与参数指定的指纹信息的欧氏距离
      */
     public float getEuclideanDist(float geomagnetic_y, float geomagnetic_z) {
-        return (float) Math.sqrt(Math.pow((mGeomagnetic_y - geomagnetic_y), 2) + Math.pow((mGeomagnetic_z - geomagnetic_z), 2));
+        return (float) Math.sqrt(Math.pow((mGeomagnetic_y - geomagnetic_y), 2)
+                + Math.pow((mGeomagnetic_z - geomagnetic_z), 2));
     }
 
     /**

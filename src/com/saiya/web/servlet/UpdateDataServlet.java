@@ -36,7 +36,8 @@ public class UpdateDataServlet extends HttpServlet {
     public static final String UPDATE_GEOMAGNETIC = "geomagnetic";
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         boolean updateSucceed = false;
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         req.setCharacterEncoding("utf-8");
@@ -49,14 +50,16 @@ public class UpdateDataServlet extends HttpServlet {
         if(updateType.equals(UPDATE_WIFI)) {
             String mac = req.getParameter("mac");
             String rssi = req.getParameter("rssi");
-            updateSucceed = databaseManager.updateWifiFingerPrint(sceneName, location_x, location_y, mac, rssi);
+            updateSucceed = databaseManager.updateWifiFingerPrint
+                    (sceneName, location_x, location_y, mac, rssi);
         }
 
         //更新地磁指纹
         if(updateType.equals(UPDATE_GEOMAGNETIC)){
             float geomagnetic_y = Float.parseFloat(req.getParameter("geomagnetic_y"));
             float geomagnetic_z = Float.parseFloat(req.getParameter("geomagnetic_z"));
-            updateSucceed = databaseManager.updateGeoFingerprint(sceneName, location_x, location_y, geomagnetic_y, geomagnetic_z);
+            updateSucceed = databaseManager.updateGeoFingerprint
+                    (sceneName, location_x, location_y, geomagnetic_y, geomagnetic_z);
         }
 
         resp.setContentType("application/json");
