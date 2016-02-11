@@ -84,7 +84,8 @@ public class Algorithms {
 
     /**
      * 按权值将K个位置的X,Y坐标分配给结果
-     * @param EuclideanDistList 存储EuclideanDist对象的List,包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
+     * @param EuclideanDistList 存储EuclideanDist对象的List,
+     *                          包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
      * @return 返回定位结果坐标
      */
     private static float[] calculateByWeight(List<EuclideanDist> EuclideanDistList) {
@@ -122,7 +123,8 @@ public class Algorithms {
 
     /**
      * 将EuclideanDistList中欧氏距离值最小的前K个值放到最前面
-     * @param EuclideanDistList 存储EuclideanDist对象的List,包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
+     * @param EuclideanDistList 存储EuclideanDist对象的List,
+     *                          包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
      * @param start 起始位置
      * @param end 终止位置
      * @param K 常量K
@@ -139,8 +141,7 @@ public class Algorithms {
             }
             if(mid - start + 1 > K) {
                 findKNearestEuclideanDist(EuclideanDistList, start, mid - 1, K);
-            }
-            else {
+            } else {
                 findKNearestEuclideanDist(EuclideanDistList, mid + 1, end, K - (mid - start + 1));
             }
         }
@@ -148,7 +149,8 @@ public class Algorithms {
 
     /**
      * findKNearestEuclideanDist函数的分区函数
-     * @param EuclideanDistList 存储EuclideanDist对象的List,包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
+     * @param EuclideanDistList 存储EuclideanDist对象的List,
+     *                          包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
      * @param start 起始位置
      * @param end 终止位置
      * @return 分界位置

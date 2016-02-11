@@ -15,7 +15,8 @@ import java.net.URLDecoder;
 
 /**
  * 处理更新地图请求的Servlet
- * 需要客户端发起请求方式为POST在Http头中加入sceneName参数,代表场景名称,加入scale参数,代表比例尺,加入Part文件域sceneMap,代表地图文件
+ * 需要客户端发起请求方式为POST在Http头中加入sceneName参数,代表场景名称
+ * 加入scale参数,代表比例尺,加入Part文件域sceneMap,代表地图文件
  * 返回JSON数据,格式为{"updateSucceed":是否成功}
  */
 @WebServlet(name = "UploadMapServlet", urlPatterns = "/positioning/uploadmap")

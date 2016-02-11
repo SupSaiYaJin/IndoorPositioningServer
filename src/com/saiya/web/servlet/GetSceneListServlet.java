@@ -15,7 +15,8 @@ import java.util.List;
 /**
  * 处理得到数据库所有场景名称的Servlet
  * 需要客户端发起请求方式为POST
- * 返回JSON数据,包含场景名称与最后更新时间,格式为{"maps":[{"sceneName":"name","scale":122,"lastUpdateTime":20151210},...]}
+ * 返回JSON数据,包含场景名称与最后更新时间,格式为
+ * {"maps":[{"sceneName":"name","scale":122,"lastUpdateTime":20151210},...]}
  */
 @WebServlet(name = "GetSceneListServlet", urlPatterns = "/positioning/getscenelist")
 public class GetSceneListServlet extends HttpServlet{

@@ -19,7 +19,8 @@ import java.io.PrintWriter;
 public class LogoutServlet extends HttpServlet{
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+    throws ServletException, IOException {
         //如果Session存在,则销毁它
         HttpSession session = req.getSession(false);
         if(session != null) {

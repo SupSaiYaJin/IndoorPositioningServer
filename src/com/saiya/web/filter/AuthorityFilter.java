@@ -25,8 +25,7 @@ public class AuthorityFilter implements Filter{
         HttpSession session = request.getSession();
         if(session.getAttribute("username") != null) {
             filterChain.doFilter(servletRequest, servletResponse);
-        }
-        else {
+        } else {
             servletResponse.setContentType("application/json");
             PrintWriter out = servletResponse.getWriter();
             out.print("{\"authorized\":false}");

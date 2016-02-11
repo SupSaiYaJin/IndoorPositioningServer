@@ -15,22 +15,23 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 负责所有与数据库有关的操作
  */
 public class DatabaseManager {
 
-    /**
-     * 未知错误
-     */
-    public static final int UNEXPECTED_ERROR = -1;
-
     private DataSource mDataSource;
     private static DatabaseManager mDatabaseManager;
 
     static {
+        wifiFingerprintCache = new HashMap<>();
+        geoFingerprintCache = new HashMap<>();
+        sceneIdCache = new HashMap<>();
+        sceneInfoCache = new ArrayList<>();
         try {
             Context context = new InitialContext();
             DataSource dataSource = (DataSource) context.lookup("java:comp/env/jdbc/positioning");
@@ -53,6 +54,28 @@ public class DatabaseManager {
     public static DatabaseManager getInstance() {
         return mDatabaseManager;
     }
+
+    /**
+     * 缓存WiFi位置指纹
+     */
+    private static Map<String, List<WifiFingerprint>> wifiFingerprintCache;
+    /**
+     * 缓存地磁位置指纹
+     */
+    private static Map<String, List<GeoFingerprint>> geoFingerprintCache;
+    /**
+     * 缓存场景ID
+     */
+    private static Map<String, Integer> sceneIdCache;
+    /**
+     * 缓存场景信息列表
+     */
+    private static List<SceneInfo> sceneInfoCache;
+
+    /**
+     * 未知错误
+     */
+    public static final int UNEXPECTED_ERROR = -1;
 
     /**
      * 登录成功
@@ -116,8 +139,7 @@ public class DatabaseManager {
             ResultSet resultSet = Pstmt.executeQuery();
             if (resultSet.next()) {
                 return DUPLICATE_USERNAME;
-            }
-            else {
+            } else {
                 Pstmt = conn.prepareStatement("INSERT INTO p_user VALUES (NULL ,?, ?)");
                 Pstmt.setString(1, username);
                 Pstmt.setString(2, password);
@@ -140,9 +162,10 @@ public class DatabaseManager {
      * @param rssi       要更新位置的RSSI,形式为rssi1,rssi2...,rssiN
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateWifiFingerPrint(String scene_name, float location_x, float location_y, String mac, String rssi) {
+    public boolean updateWifiFingerPrint
+    (String scene_name, float location_x, float location_y, String mac, String rssi) {
         try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneID(scene_name);
+            int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
                 return false;
             }
@@ -167,6 +190,7 @@ public class DatabaseManager {
                 Pstmt.setString(5, rssi);
                 Pstmt.executeUpdate();
             }
+            wifiFingerprintCache.remove(scene_name);
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -184,9 +208,11 @@ public class DatabaseManager {
      * @param geomagnetic_z 要更新位置的Z方向的磁场强度
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateGeoFingerprint(String scene_name, float location_x, float location_y, float geomagnetic_y, float geomagnetic_z) {
+    public boolean updateGeoFingerprint
+    (String scene_name, float location_x,
+     float location_y, float geomagnetic_y, float geomagnetic_z) {
         try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneID(scene_name);
+            int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
                 return false;
             }
@@ -211,6 +237,7 @@ public class DatabaseManager {
                 Pstmt.setFloat(5, geomagnetic_z);
                 Pstmt.executeUpdate();
             }
+            geoFingerprintCache.remove(scene_name);
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -228,9 +255,10 @@ public class DatabaseManager {
      */
     public boolean updateSceneMap(String scene_name, float scale, InputStream scene_map) {
         try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneID(scene_name);
+            int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
-                PreparedStatement Pstmt = conn.prepareStatement("INSERT INTO p_scene_info VALUES (NULL , ?, ?, ?, NULL)");
+                PreparedStatement Pstmt = conn.prepareStatement
+                        ("INSERT INTO p_scene_info VALUES (NULL , ?, ?, ?, NULL)");
                 Pstmt.setString(1, scene_name);
                 Pstmt.setBinaryStream(2, scene_map);
                 if (scale != 0) {
@@ -238,7 +266,8 @@ public class DatabaseManager {
                 }
                 Pstmt.executeUpdate();
             } else {
-                PreparedStatement Pstmt = conn.prepareStatement("UPDATE p_scene_info SET scene_map = ?, scale = ? WHERE id = ?");
+                PreparedStatement Pstmt = conn.prepareStatement
+                        ("UPDATE p_scene_info SET scene_map = ?, scale = ? WHERE id = ?");
                 Pstmt.setBinaryStream(1, scene_map);
                 if (scale != 0) {
                     Pstmt.setFloat(2, scale);
@@ -246,6 +275,7 @@ public class DatabaseManager {
                 Pstmt.setInt(3, scene_id);
                 Pstmt.executeUpdate();
             }
+            sceneInfoCache.clear();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -260,9 +290,12 @@ public class DatabaseManager {
      * @return 返回由WifiFingerprint对象组成的List, 每个WifiFingerprint对应一个位置的WiFi位置指纹
      */
     public List<WifiFingerprint> getWifiFingerprint(String scene_name) {
+        if(wifiFingerprintCache.containsKey(scene_name)) {
+            return wifiFingerprintCache.get(scene_name);
+        }
         List<WifiFingerprint> result = new ArrayList<>();
         try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneID(scene_name);
+            int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
                 return new ArrayList<>();
             }
@@ -280,10 +313,10 @@ public class DatabaseManager {
                 result.add(new WifiFingerprint(location, Algorithms.macToArray(fingerprint[0]),
                         Algorithms.rssiToArray(fingerprint[1])));
             }
-            return result;
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        wifiFingerprintCache.put(scene_name, result);
         return result;
     }
 
@@ -294,9 +327,12 @@ public class DatabaseManager {
      * @return 返回由GeoFingerprint对象组成的List, 每个GeoFingerprint对应一个位置的地磁位置指纹
      */
     public List<GeoFingerprint> getGeoFingerprint(String scene_name) {
+        if(geoFingerprintCache.containsKey(scene_name)) {
+            return geoFingerprintCache.get(scene_name);
+        }
         List<GeoFingerprint> result = new ArrayList<>();
         try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneID(scene_name);
+            int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
                 return new ArrayList<>();
             }
@@ -313,10 +349,10 @@ public class DatabaseManager {
                 fingerprint[1] = resultSet.getFloat("geomagnetic_z");
                 result.add(new GeoFingerprint(location, fingerprint[0], fingerprint[1]));
             }
-            return result;
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        geoFingerprintCache.put(scene_name, result);
         return result;
     }
 
@@ -326,6 +362,9 @@ public class DatabaseManager {
      * @return 返回一个List存储SceneInfo对象, 包含场景名称, 比例尺, 最后更新时间的信息
      */
     public List<SceneInfo> getSceneList() {
+        if(sceneInfoCache.size() != 0) {
+            return sceneInfoCache;
+        }
         List<SceneInfo> result = new ArrayList<>();
         try (Connection conn = mDataSource.getConnection()) {
             PreparedStatement Pstmt = conn.prepareStatement
@@ -335,10 +374,10 @@ public class DatabaseManager {
                 result.add(new SceneInfo(resultSet.getString("scene_name"),
                         resultSet.getFloat("scale"), resultSet.getLong("last_update_time")));
             }
-            return result;
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        sceneInfoCache = result;
         return result;
     }
 
@@ -348,16 +387,20 @@ public class DatabaseManager {
      * @param scene_name 场景名称
      * @return 返回场景ID
      */
-    public int getSceneID(String scene_name) {
+    public int getSceneId(String scene_name) {
+        if(sceneIdCache.containsKey(scene_name)) {
+            return sceneIdCache.get(scene_name);
+        }
         try (Connection conn = mDataSource.getConnection()) {
             PreparedStatement Pstmt = conn.prepareStatement
                     ("SELECT id FROM p_scene_info WHERE scene_name = ?");
             Pstmt.setString(1, scene_name);
             ResultSet resultSet = Pstmt.executeQuery();
             if (resultSet.next()) {
-                return resultSet.getInt("id");
-            }
-            else {
+                int id = resultSet.getInt("id");
+                sceneIdCache.put(scene_name, id);
+                return id;
+            } else {
                 return -1;
             }
         } catch (SQLException e) {
@@ -380,8 +423,7 @@ public class DatabaseManager {
             ResultSet resultSet = Pstmt.executeQuery();
             if (resultSet.next()) {
                 return resultSet.getBytes("scene_map");
-            }
-            else {
+            } else {
                 return null;
             }
         } catch (SQLException e) {

@@ -42,8 +42,7 @@ public class WifiFingerprint {
             Float rssiFingerprint = mFingerprintMap.get(mac[i]);
             if(rssiFingerprint != null) {
                 EuclideanDist += Math.pow(rssiFingerprint - rssi[i], 2);
-            }
-            else {
+            } else {
                 EuclideanDist += Math.pow(NONE_RSSI - rssi[i], 2);
             }
         }
