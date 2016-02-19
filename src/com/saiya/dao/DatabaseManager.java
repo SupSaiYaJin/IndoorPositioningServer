@@ -372,7 +372,8 @@ public class DatabaseManager {
             ResultSet resultSet = Pstmt.executeQuery();
             while (resultSet.next()) {
                 result.add(new SceneInfo(resultSet.getString("scene_name"),
-                        resultSet.getFloat("scale"), resultSet.getLong("last_update_time")));
+                        resultSet.getFloat("scale"),
+                        resultSet.getTimestamp("last_update_time").getTime()));
             }
         } catch (SQLException e) {
             e.printStackTrace();
