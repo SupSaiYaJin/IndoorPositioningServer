@@ -24,14 +24,14 @@ public class LoginServlet extends HttpServlet{
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String username = req.getParameter("username");
         String password = req.getParameter("password");
         int loginResult = databaseManager.login(username, password);
 
         /** 若登录成功,在Session中加入参数username,并设置最大未激活时间 */
-        if(loginResult == DatabaseManager.LOGIN_SUCCEED) {
+        if (loginResult == DatabaseManager.LOGIN_SUCCEED) {
             HttpSession session = req.getSession();
             session.setAttribute("username", username);
             session.setMaxInactiveInterval(MAX_INACTIVE_INTERVAL);

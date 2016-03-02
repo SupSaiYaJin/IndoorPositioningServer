@@ -22,13 +22,13 @@ import java.util.List;
 public class GetSceneListServlet extends HttpServlet{
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         List<SceneInfo> sceneMap = databaseManager.getSceneList();
         resp.setContentType("application/json; charset=utf-8");
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("{\"maps\":[");
-        for(SceneInfo info : sceneMap) {
+        for (SceneInfo info : sceneMap) {
             stringBuilder.append("{\"sceneName\":");
             stringBuilder.append(String.format("\"%s\",", info.getSceneName()));
             stringBuilder.append("\"scale\":");

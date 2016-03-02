@@ -24,7 +24,7 @@ import java.net.URLDecoder;
 public class UploadMapServlet extends HttpServlet{
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String sceneName = URLDecoder.decode(req.getHeader("sceneName"), "utf-8");
         float scale = Float.parseFloat(req.getHeader("scale"));

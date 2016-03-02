@@ -20,10 +20,10 @@ public class LogoutServlet extends HttpServlet{
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         //如果Session存在,则销毁它
         HttpSession session = req.getSession(false);
-        if(session != null) {
+        if (session != null) {
             session.invalidate();
         }
 

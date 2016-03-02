@@ -19,7 +19,7 @@ import java.io.PrintWriter;
 public class RegisterServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String username = req.getParameter("username");
         String password = req.getParameter("password");

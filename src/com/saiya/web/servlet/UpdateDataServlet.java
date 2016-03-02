@@ -37,7 +37,7 @@ public class UpdateDataServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         boolean updateSucceed = false;
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         req.setCharacterEncoding("utf-8");
@@ -47,7 +47,7 @@ public class UpdateDataServlet extends HttpServlet {
         float location_y = Float.parseFloat(req.getParameter("location_y"));
 
         //更新Wifi指纹
-        if(updateType.equals(UPDATE_WIFI)) {
+        if (updateType.equals(UPDATE_WIFI)) {
             String mac = req.getParameter("mac");
             String rssi = req.getParameter("rssi");
             updateSucceed = databaseManager.updateWifiFingerPrint
@@ -55,7 +55,7 @@ public class UpdateDataServlet extends HttpServlet {
         }
 
         //更新地磁指纹
-        if(updateType.equals(UPDATE_GEOMAGNETIC)){
+        if (updateType.equals(UPDATE_GEOMAGNETIC)){
             float geomagnetic_y = Float.parseFloat(req.getParameter("geomagnetic_y"));
             float geomagnetic_z = Float.parseFloat(req.getParameter("geomagnetic_z"));
             updateSucceed = databaseManager.updateGeoFingerprint

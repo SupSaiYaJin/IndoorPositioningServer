@@ -37,7 +37,7 @@ public class LocateServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
+            throws ServletException, IOException {
         req.setCharacterEncoding("utf-8");
         String sceneName = req.getParameter("sceneName");
         int locateType = Integer.parseInt(req.getParameter("locateType"));

@@ -24,6 +24,36 @@ import java.util.Map;
  */
 public class DatabaseManager {
 
+    /**
+     * 未知错误
+     */
+    public static final int UNEXPECTED_ERROR = -1;
+
+    /**
+     * 登录成功
+     */
+    public static final int LOGIN_SUCCEED = 0;
+
+    /**
+     * 用户名不存在
+     */
+    public static final int USERNAME_NOT_EXIST = 1;
+
+    /**
+     * 密码错误
+     */
+    public static final int PASSWORD_ERROR = 2;
+
+    /**
+     * 注册成功
+     */
+    public static final int REGISTER_SUCCEED = 3;
+
+    /**
+     * 用户名重复
+     */
+    public static final int DUPLICATE_USERNAME = 4;
+
     private DataSource mDataSource;
     private static DatabaseManager mDatabaseManager;
 
@@ -59,39 +89,21 @@ public class DatabaseManager {
      * 缓存WiFi位置指纹
      */
     private static Map<String, List<WifiFingerprint>> wifiFingerprintCache;
+
     /**
      * 缓存地磁位置指纹
      */
     private static Map<String, List<GeoFingerprint>> geoFingerprintCache;
+
     /**
      * 缓存场景ID
      */
     private static Map<String, Integer> sceneIdCache;
+
     /**
      * 缓存场景信息列表
      */
     private static List<SceneInfo> sceneInfoCache;
-
-    /**
-     * 未知错误
-     */
-    public static final int UNEXPECTED_ERROR = -1;
-
-    /**
-     * 登录成功
-     */
-    public static final int LOGIN_SUCCEED = 0;
-
-    /**
-     * 用户名不存在
-     */
-    public static final int USERNAME_NOT_EXIST = 1;
-
-    /**
-     * 密码错误
-     */
-    public static final int PASSWORD_ERROR = 2;
-
 
     /**
      * 登录
@@ -113,16 +125,6 @@ public class DatabaseManager {
         }
         return UNEXPECTED_ERROR;
     }
-
-    /**
-     * 注册成功
-     */
-    public static final int REGISTER_SUCCEED = 3;
-
-    /**
-     * 用户名重复
-     */
-    public static final int DUPLICATE_USERNAME = 4;
 
     /**
      * 注册
@@ -162,8 +164,8 @@ public class DatabaseManager {
      * @param rssi       要更新位置的RSSI,形式为rssi1,rssi2...,rssiN
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateWifiFingerPrint
-    (String scene_name, float location_x, float location_y, String mac, String rssi) {
+    public boolean updateWifiFingerPrint(String scene_name, float location_x, float location_y,
+            String mac, String rssi) {
         try (Connection conn = mDataSource.getConnection()) {
             int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
@@ -208,9 +210,8 @@ public class DatabaseManager {
      * @param geomagnetic_z 要更新位置的Z方向的磁场强度
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateGeoFingerprint
-    (String scene_name, float location_x,
-     float location_y, float geomagnetic_y, float geomagnetic_z) {
+    public boolean updateGeoFingerprint(String scene_name, float location_x, float location_y,
+            float geomagnetic_y, float geomagnetic_z) {
         try (Connection conn = mDataSource.getConnection()) {
             int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
@@ -290,7 +291,7 @@ public class DatabaseManager {
      * @return 返回由WifiFingerprint对象组成的List, 每个WifiFingerprint对应一个位置的WiFi位置指纹
      */
     public List<WifiFingerprint> getWifiFingerprint(String scene_name) {
-        if(wifiFingerprintCache.containsKey(scene_name)) {
+        if (wifiFingerprintCache.containsKey(scene_name)) {
             return wifiFingerprintCache.get(scene_name);
         }
         List<WifiFingerprint> result = new ArrayList<>();
@@ -327,7 +328,7 @@ public class DatabaseManager {
      * @return 返回由GeoFingerprint对象组成的List, 每个GeoFingerprint对应一个位置的地磁位置指纹
      */
     public List<GeoFingerprint> getGeoFingerprint(String scene_name) {
-        if(geoFingerprintCache.containsKey(scene_name)) {
+        if (geoFingerprintCache.containsKey(scene_name)) {
             return geoFingerprintCache.get(scene_name);
         }
         List<GeoFingerprint> result = new ArrayList<>();
@@ -362,7 +363,7 @@ public class DatabaseManager {
      * @return 返回一个List存储SceneInfo对象, 包含场景名称, 比例尺, 最后更新时间的信息
      */
     public List<SceneInfo> getSceneList() {
-        if(sceneInfoCache.size() != 0) {
+        if (sceneInfoCache.size() != 0) {
             return sceneInfoCache;
         }
         List<SceneInfo> result = new ArrayList<>();
@@ -389,7 +390,7 @@ public class DatabaseManager {
      * @return 返回场景ID
      */
     public int getSceneId(String scene_name) {
-        if(sceneIdCache.containsKey(scene_name)) {
+        if (sceneIdCache.containsKey(scene_name)) {
             return sceneIdCache.get(scene_name);
         }
         try (Connection conn = mDataSource.getConnection()) {

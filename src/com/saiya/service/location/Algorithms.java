@@ -1,9 +1,6 @@
 package com.saiya.service.location;
 
 import com.saiya.dao.DatabaseManager;
-import com.saiya.service.location.EuclideanDist;
-import com.saiya.service.location.GeoFingerprint;
-import com.saiya.service.location.WifiFingerprint;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -26,7 +23,7 @@ public class Algorithms {
      * @param rssi 采集到的RSSI信息,形式为rssi1,rssi2...,rssiN
      * @return 返回定位结果坐标
      */
-    public static float[]  locateOnWifi(String sceneName, String mac, String rssi) {
+    public static float[] locateOnWifi(String sceneName, String mac, String rssi) {
         List<WifiFingerprint> wifiDataList = DatabaseManager.getInstance()
                 .getWifiFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
@@ -47,8 +44,8 @@ public class Algorithms {
      * @param geomagnetic_z 采集到的Z方向磁场强度
      * @return 返回定位结果坐标
      */
-    public static float[] locateOnGeomagnetic
-    (String sceneName, float geomagnetic_y, float geomagnetic_z) {
+    public static float[] locateOnGeomagnetic (String sceneName,
+            float geomagnetic_y, float geomagnetic_z) {
         List<GeoFingerprint> geoDataList = DatabaseManager.getInstance()
                 .getGeoFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
@@ -70,8 +67,8 @@ public class Algorithms {
      * @param geomagnetic_z 采集到的Z方向磁场强度
      * @return 返回定位结果坐标
      */
-    public static float[] locateOnAll
-    (String sceneName, String mac, String rssi, float geomagnetic_y, float geomagnetic_z) {
+    public static float[] locateOnAll (String sceneName, String mac, String rssi,
+            float geomagnetic_y, float geomagnetic_z) {
         float[] wifiResult = locateOnWifi(sceneName, mac, rssi);
         float[] geoResult = locateOnGeomagnetic(sceneName, geomagnetic_y, geomagnetic_z);
         float[] result = new float[2];
@@ -81,6 +78,7 @@ public class Algorithms {
     }
 
     private static final int K = 3;
+    private static final float[] wrongResult = new float[]{-1, -1};
 
     /**
      * 按权值将K个位置的X,Y坐标分配给结果
@@ -89,8 +87,8 @@ public class Algorithms {
      * @return 返回定位结果坐标
      */
     private static float[] calculateByWeight(List<EuclideanDist> EuclideanDistList) {
-        if(EuclideanDistList.size() < K) {
-            return new float[]{-1, -1};
+        if (EuclideanDistList.size() < K) {
+            return wrongResult;
         }
         float[] result = new float[2];
         //将List中前K小的欧氏距离放在List的最前面
@@ -101,7 +99,7 @@ public class Algorithms {
         float locations[][] = new float[K][2];
         //K个欧式距离之和,方便计算权重
         float euclideanDistsSum = 0f;
-        for(int i = 0; i < K; ++i) {
+        for (int i = 0; i < K; ++i) {
             locations[i][0] = EuclideanDistList.get(i).getLocation_x();
             locations[i][1] = EuclideanDistList.get(i).getLocation_y();
             euclideanDists[i] = EuclideanDistList.get(i).getEuclideanDist();
@@ -109,7 +107,7 @@ public class Algorithms {
         }
         //K个坐标的权重,欧氏距离越小的权重越大
         float[] weight = new float[K];
-        for(int i = 0; i < K; ++i) {
+        for (int i = 0; i < K; ++i) {
             weight[i] = (euclideanDistsSum - euclideanDists[i]) / (2 * (euclideanDistsSum));
         }
         //将权重分配给结果
@@ -129,17 +127,17 @@ public class Algorithms {
      * @param end 终止位置
      * @param K 常量K
      */
-    private static void findKNearestEuclideanDist
-    (List<EuclideanDist> EuclideanDistList, int start, int end, int K) {
-        if(end - start + 1 < K) {
+    private static void findKNearestEuclideanDist(List<EuclideanDist> EuclideanDistList,
+            int start, int end, int K) {
+        if (end - start + 1 < K) {
             return;
         }
-        if(start < end) {
+        if (start < end) {
             int mid = partition(EuclideanDistList, start, end);
-            if(mid - start + 1 == K) {
+            if (mid - start + 1 == K) {
                 return;
             }
-            if(mid - start + 1 > K) {
+            if (mid - start + 1 > K) {
                 findKNearestEuclideanDist(EuclideanDistList, start, mid - 1, K);
             } else {
                 findKNearestEuclideanDist(EuclideanDistList, mid + 1, end, K - (mid - start + 1));
@@ -155,11 +153,11 @@ public class Algorithms {
      * @param end 终止位置
      * @return 分界位置
      */
-    private static int partition (List<EuclideanDist> EuclideanDistList, int start, int end) {
+    private static int partition(List<EuclideanDist> EuclideanDistList, int start, int end) {
         float key = EuclideanDistList.get(end).getEuclideanDist();
         int result = start;
-        for(int i = start; i < end; ++i) {
-            if(EuclideanDistList.get(i).getEuclideanDist() < key) {
+        for (int i = start; i < end; ++i) {
+            if (EuclideanDistList.get(i).getEuclideanDist() < key) {
                 Collections.swap(EuclideanDistList, result, i);
                 ++result;
             }
@@ -173,7 +171,7 @@ public class Algorithms {
      * @param nums 定位结果坐标
      */
     private static void setDecimalScale(float[] nums) {
-        for(int i = 0; i < nums.length; ++i)
+        for (int i = 0; i < nums.length; ++i)
             nums[i] = new BigDecimal(nums[i])
                     .setScale(RETAIN_DECIMAL, BigDecimal.ROUND_HALF_UP).floatValue();
     }
@@ -195,7 +193,7 @@ public class Algorithms {
     public static float[] rssiToArray(String rssi) {
         String[] rssiStringArray = rssi.split(",");
         float[] rssiFloatArray = new float[rssiStringArray.length];
-        for(int i = 0; i < rssiStringArray.length; ++i) {
+        for (int i = 0; i < rssiStringArray.length; ++i) {
             rssiFloatArray[i] = Float.parseFloat(rssiStringArray[i]);
         }
         return rssiFloatArray;
