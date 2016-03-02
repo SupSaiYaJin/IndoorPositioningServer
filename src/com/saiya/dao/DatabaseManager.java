@@ -1,19 +1,13 @@
 package com.saiya.dao;
 
-import com.saiya.service.location.Algorithms;
-import com.saiya.service.location.GeoFingerprint;
-import com.saiya.service.location.SceneInfo;
-import com.saiya.service.location.WifiFingerprint;
+import com.saiya.dao.hbm.GeoFingerprint;
+import com.saiya.dao.hbm.SceneInfo;
+import com.saiya.dao.hbm.User;
+import com.saiya.dao.hbm.WifiFingerprint;
+import org.hibernate.HibernateException;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-import javax.sql.DataSource;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,33 +48,10 @@ public class DatabaseManager {
      */
     public static final int DUPLICATE_USERNAME = 4;
 
-    private DataSource mDataSource;
     private static DatabaseManager mDatabaseManager;
 
-    static {
-        wifiFingerprintCache = new HashMap<>();
-        geoFingerprintCache = new HashMap<>();
-        sceneIdCache = new HashMap<>();
-        sceneInfoCache = new ArrayList<>();
-        try {
-            Context context = new InitialContext();
-            DataSource dataSource = (DataSource) context.lookup("java:comp/env/jdbc/positioning");
-            mDatabaseManager = new DatabaseManager(dataSource);
-        } catch (NamingException e) {
-            e.printStackTrace();
-        }
-    }
+    private DatabaseManager() {}
 
-    /**
-     * @param dataSource 数据源对象,所有对数据库的操作通过它完成
-     */
-    private DatabaseManager(DataSource dataSource) {
-        mDataSource = dataSource;
-    }
-
-    /**
-     * @return 返回DatabaseManager的唯一实例
-     */
     public static DatabaseManager getInstance() {
         return mDatabaseManager;
     }
@@ -105,6 +76,14 @@ public class DatabaseManager {
      */
     private static List<SceneInfo> sceneInfoCache;
 
+    static {
+        wifiFingerprintCache = new HashMap<>();
+        geoFingerprintCache = new HashMap<>();
+        sceneIdCache = new HashMap<>();
+        sceneInfoCache = new ArrayList<>();
+        mDatabaseManager = new DatabaseManager();
+    }
+
     /**
      * 登录
      *
@@ -113,17 +92,23 @@ public class DatabaseManager {
      * @return 登录信息码
      */
     public int login(String username, String password) {
-        try (Connection conn = mDataSource.getConnection()) {
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT password FROM p_user WHERE username = ?");
-            Pstmt.setString(1, username);
-            ResultSet resultSet = Pstmt.executeQuery();
-            return resultSet.next() ? (resultSet.getString("password").equals(password) ?
-                    LOGIN_SUCCEED : PASSWORD_ERROR) : USERNAME_NOT_EXIST;
-        } catch (SQLException e) {
-            e.printStackTrace();
+        int responseCode;
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        User user = (User) session.createQuery("from User where username = ?")
+                .setString(0, username).uniqueResult();
+        if (user == null) {
+            responseCode = USERNAME_NOT_EXIST;
+        } else {
+            if (user.getPassword().equals(password)) {
+                responseCode = LOGIN_SUCCEED;
+            } else {
+                responseCode = PASSWORD_ERROR;
+            }
         }
-        return UNEXPECTED_ERROR;
+        tx.commit();
+        session.close();
+        return responseCode;
     }
 
     /**
@@ -134,24 +119,36 @@ public class DatabaseManager {
      * @return 注册信息码
      */
     public int register(String username, String password) {
-        try (Connection conn = mDataSource.getConnection()) {
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT * FROM p_user WHERE username = ?");
-            Pstmt.setString(1, username);
-            ResultSet resultSet = Pstmt.executeQuery();
-            if (resultSet.next()) {
-                return DUPLICATE_USERNAME;
+        int responseCode = UNEXPECTED_ERROR;
+        Session session = null;
+        Transaction tx = null;
+        try {
+            session = HibernateUtil.getSession();
+            tx = session.beginTransaction();
+            User user = (User) session.createQuery("from User where username = ?")
+                    .setString(0, username).uniqueResult();
+            if (user != null) {
+                responseCode = DUPLICATE_USERNAME;
             } else {
-                Pstmt = conn.prepareStatement("INSERT INTO p_user VALUES (NULL ,?, ?)");
-                Pstmt.setString(1, username);
-                Pstmt.setString(2, password);
-                Pstmt.executeUpdate();
-                return REGISTER_SUCCEED;
+                user = new User();
+                user.setUsername(username);
+                user.setPassword(password);
+                session.save(user);
+                responseCode = REGISTER_SUCCEED;
             }
-        } catch (SQLException e) {
+            tx.commit();
+        } catch (HibernateException e) {
             e.printStackTrace();
+            if (tx != null) {
+                tx.rollback();
+            }
+            responseCode = UNEXPECTED_ERROR;
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
-        return UNEXPECTED_ERROR;
+        return responseCode;
     }
 
     /**
@@ -164,40 +161,49 @@ public class DatabaseManager {
      * @param rssi       要更新位置的RSSI,形式为rssi1,rssi2...,rssiN
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateWifiFingerPrint(String scene_name, float location_x, float location_y,
+    public boolean updateWifiFingerPrint(String scene_name, double location_x, double location_y,
             String mac, String rssi) {
-        try (Connection conn = mDataSource.getConnection()) {
+        boolean isSucceed = false;
+        Session session = null;
+        Transaction tx = null;
+        try {
+            session = HibernateUtil.getSession();
+            tx = session.beginTransaction();
             int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
-                return false;
-            }
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT * FROM p_wifi_fingerprint WHERE scene_id = ? AND ABS(location_x - ?) < 1e-5 AND ABS(location_y - ?) < 1e-5",
-                    ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            Pstmt.setInt(1, scene_id);
-            Pstmt.setFloat(2, location_x);
-            Pstmt.setFloat(3, location_y);
-            ResultSet resultSet = Pstmt.executeQuery();
-            if (resultSet.next()) {
-                resultSet.updateString("mac", mac);
-                resultSet.updateString("rssi", rssi);
-                resultSet.updateRow();
+                isSucceed = false;
             } else {
-                Pstmt = conn.prepareStatement
-                        ("INSERT INTO p_wifi_fingerprint VALUES (NULL,?,?,?,?,?)");
-                Pstmt.setInt(1, scene_id);
-                Pstmt.setFloat(2, location_x);
-                Pstmt.setFloat(3, location_y);
-                Pstmt.setString(4, mac);
-                Pstmt.setString(5, rssi);
-                Pstmt.executeUpdate();
+                WifiFingerprint wifiFingerprint =
+                        (WifiFingerprint) session.createQuery("from WifiFingerprint where sceneId = ? " +
+                        "and ABS(locationX - ?) < 1e-5 AND ABS(locationY - ?) < 1e-5")
+                        .setInteger(0, scene_id)
+                        .setDouble(1, location_x)
+                        .setDouble(2, location_y).uniqueResult();
+                if (wifiFingerprint == null) {
+                    wifiFingerprint = new WifiFingerprint();
+                }
+                wifiFingerprint.setSceneId(scene_id);
+                wifiFingerprint.setLocationX(location_x);
+                wifiFingerprint.setLocationY(location_y);
+                wifiFingerprint.setMac(mac);
+                wifiFingerprint.setRssi(rssi);
+                session.saveOrUpdate(wifiFingerprint);
             }
-            wifiFingerprintCache.remove(scene_name);
-            return true;
-        } catch (SQLException e) {
+            isSucceed = true;
+            tx.commit();
+        } catch (HibernateException e) {
             e.printStackTrace();
+            if (tx != null) {
+                tx.rollback();
+            }
+            isSucceed = false;
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
-        return false;
+        wifiFingerprintCache.remove(scene_name);
+        return isSucceed;
     }
 
     /**
@@ -210,40 +216,49 @@ public class DatabaseManager {
      * @param geomagnetic_z 要更新位置的Z方向的磁场强度
      * @return 返回true为更新成功, false为失败
      */
-    public boolean updateGeoFingerprint(String scene_name, float location_x, float location_y,
-            float geomagnetic_y, float geomagnetic_z) {
-        try (Connection conn = mDataSource.getConnection()) {
+    public boolean updateGeoFingerprint(String scene_name, double location_x, double location_y,
+            double geomagnetic_y, double geomagnetic_z) {
+        boolean isSucceed = false;
+        Session session = null;
+        Transaction tx = null;
+        try {
+            session = HibernateUtil.getSession();
+            tx = session.beginTransaction();
             int scene_id = getSceneId(scene_name);
             if (scene_id == -1) {
-                return false;
-            }
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT * FROM p_geomagnetic_fingerprint WHERE scene_id = ? AND ABS(location_x - ?) < 1e-5 AND ABS(location_y - ?) < 1e-5",
-                    ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            Pstmt.setInt(1, scene_id);
-            Pstmt.setFloat(2, location_x);
-            Pstmt.setFloat(3, location_y);
-            ResultSet resultSet = Pstmt.executeQuery();
-            if (resultSet.next()) {
-                resultSet.updateFloat("geomagnetic_y", geomagnetic_y);
-                resultSet.updateFloat("geomagnetic_z", geomagnetic_z);
-                resultSet.updateRow();
+                isSucceed = false;
             } else {
-                Pstmt = conn.prepareStatement
-                        ("INSERT INTO p_geomagnetic_fingerprint VALUES (NULL, ?, ?, ?, ?, ?)");
-                Pstmt.setInt(1, scene_id);
-                Pstmt.setFloat(2, location_x);
-                Pstmt.setFloat(3, location_y);
-                Pstmt.setFloat(4, geomagnetic_y);
-                Pstmt.setFloat(5, geomagnetic_z);
-                Pstmt.executeUpdate();
+                GeoFingerprint geoFingerprint = (GeoFingerprint) session
+                        .createQuery("from GeoFingerprint where sceneId = ? " +
+                                "and ABS(locationX - ?) < 1e-5 AND ABS(locationY - ?) < 1e-5")
+                                .setInteger(0, scene_id)
+                                .setDouble(1, location_x)
+                                .setDouble(2, location_y).uniqueResult();
+                if (geoFingerprint == null) {
+                    geoFingerprint = new GeoFingerprint();
+                }
+                geoFingerprint.setSceneId(scene_id);
+                geoFingerprint.setLocationX(location_x);
+                geoFingerprint.setLocationY(location_y);
+                geoFingerprint.setGeomagneticY(geomagnetic_y);
+                geoFingerprint.setGeomagneticZ(geomagnetic_z);
+                session.saveOrUpdate(geoFingerprint);
             }
-            geoFingerprintCache.remove(scene_name);
-            return true;
-        } catch (SQLException e) {
+            isSucceed = true;
+            tx.commit();
+        } catch (HibernateException e) {
             e.printStackTrace();
+            if (tx != null) {
+                tx.rollback();
+            }
+            isSucceed = false;
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
-        return false;
+        geoFingerprintCache.remove(scene_name);
+        return isSucceed;
     }
 
     /**
@@ -251,37 +266,41 @@ public class DatabaseManager {
      *
      * @param scene_name 要更新的场景名称
      * @param scale      场景比例尺,含义为多少个像素对应1米
-     * @param scene_map  场景地图的输入流
+     * @param mapBytes   地图文件的字节数组
      * @return 返回true为更新成功, false为更新失败
      */
-    public boolean updateSceneMap(String scene_name, float scale, InputStream scene_map) {
-        try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneId(scene_name);
-            if (scene_id == -1) {
-                PreparedStatement Pstmt = conn.prepareStatement
-                        ("INSERT INTO p_scene_info VALUES (NULL , ?, ?, ?, NULL)");
-                Pstmt.setString(1, scene_name);
-                Pstmt.setBinaryStream(2, scene_map);
-                if (scale != 0) {
-                    Pstmt.setFloat(3, scale);
-                }
-                Pstmt.executeUpdate();
-            } else {
-                PreparedStatement Pstmt = conn.prepareStatement
-                        ("UPDATE p_scene_info SET scene_map = ?, scale = ? WHERE id = ?");
-                Pstmt.setBinaryStream(1, scene_map);
-                if (scale != 0) {
-                    Pstmt.setFloat(2, scale);
-                }
-                Pstmt.setInt(3, scene_id);
-                Pstmt.executeUpdate();
+    public boolean updateSceneMap(String scene_name, double scale, byte[] mapBytes) {
+        boolean isSucceed = false;
+        Session session = null;
+        Transaction tx = null;
+        try {
+            session = HibernateUtil.getSession();
+            tx = session.beginTransaction();
+            SceneInfo sceneInfo = (SceneInfo) session
+                    .createQuery("select new SceneInfo(sceneName, scale)from SceneInfo where sceneName = ?")
+                    .setString(0, scene_name).uniqueResult();
+            if (sceneInfo == null) {
+                sceneInfo = new SceneInfo();
             }
-            sceneInfoCache.clear();
-            return true;
-        } catch (SQLException e) {
+            sceneInfo.setSceneName(scene_name);
+            sceneInfo.setScale(scale);
+            sceneInfo.setSceneMap(mapBytes);
+            session.saveOrUpdate(sceneInfo);
+            isSucceed = true;
+            tx.commit();
+        } catch (HibernateException e) {
             e.printStackTrace();
+            if (tx != null) {
+                tx.rollback();
+            }
+            isSucceed = false;
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
-        return false;
+        sceneInfoCache.clear();
+        return isSucceed;
     }
 
     /**
@@ -294,29 +313,15 @@ public class DatabaseManager {
         if (wifiFingerprintCache.containsKey(scene_name)) {
             return wifiFingerprintCache.get(scene_name);
         }
-        List<WifiFingerprint> result = new ArrayList<>();
-        try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneId(scene_name);
-            if (scene_id == -1) {
-                return new ArrayList<>();
-            }
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT location_x, location_y, mac, rssi FROM p_wifi_fingerprint WHERE scene_id = ?");
-            Pstmt.setInt(1, scene_id);
-            ResultSet resultSet = Pstmt.executeQuery();
-            while (resultSet.next()) {
-                float[] location = new float[2];
-                String[] fingerprint = new String[2];
-                location[0] = resultSet.getFloat("location_x");
-                location[1] = resultSet.getFloat("location_y");
-                fingerprint[0] = resultSet.getString("mac");
-                fingerprint[1] = resultSet.getString("rssi");
-                result.add(new WifiFingerprint(location, Algorithms.macToArray(fingerprint[0]),
-                        Algorithms.rssiToArray(fingerprint[1])));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        @SuppressWarnings("unchecked")
+        List<WifiFingerprint> result = session
+                .createQuery("from WifiFingerprint where sceneId = ?")
+                .setInteger(0, getSceneId(scene_name))
+                .list();
+        tx.commit();
+        session.close();
         wifiFingerprintCache.put(scene_name, result);
         return result;
     }
@@ -331,28 +336,15 @@ public class DatabaseManager {
         if (geoFingerprintCache.containsKey(scene_name)) {
             return geoFingerprintCache.get(scene_name);
         }
-        List<GeoFingerprint> result = new ArrayList<>();
-        try (Connection conn = mDataSource.getConnection()) {
-            int scene_id = getSceneId(scene_name);
-            if (scene_id == -1) {
-                return new ArrayList<>();
-            }
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT location_x, location_y, geomagnetic_y, geomagnetic_z FROM p_geomagnetic_fingerprint WHERE scene_id = ?");
-            Pstmt.setInt(1, scene_id);
-            ResultSet resultSet = Pstmt.executeQuery();
-            while (resultSet.next()) {
-                float[] location = new float[2];
-                float[] fingerprint = new float[2];
-                location[0] = resultSet.getFloat("location_x");
-                location[1] = resultSet.getFloat("location_y");
-                fingerprint[0] = resultSet.getFloat("geomagnetic_y");
-                fingerprint[1] = resultSet.getFloat("geomagnetic_z");
-                result.add(new GeoFingerprint(location, fingerprint[0], fingerprint[1]));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        @SuppressWarnings("unchecked")
+        List<GeoFingerprint> result = session
+                .createQuery("from GeoFingerprint where sceneId = ?")
+                .setInteger(0, getSceneId(scene_name))
+                .list();
+        tx.commit();
+        session.close();
         geoFingerprintCache.put(scene_name, result);
         return result;
     }
@@ -366,19 +358,14 @@ public class DatabaseManager {
         if (sceneInfoCache.size() != 0) {
             return sceneInfoCache;
         }
-        List<SceneInfo> result = new ArrayList<>();
-        try (Connection conn = mDataSource.getConnection()) {
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT scene_name, scale, last_update_time FROM p_scene_info");
-            ResultSet resultSet = Pstmt.executeQuery();
-            while (resultSet.next()) {
-                result.add(new SceneInfo(resultSet.getString("scene_name"),
-                        resultSet.getFloat("scale"),
-                        resultSet.getTimestamp("last_update_time").getTime()));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        @SuppressWarnings("unchecked")
+        List<SceneInfo> result = session.createQuery
+                ("select new SceneInfo(sceneName, scale, lastUpdateTime) from SceneInfo ")
+                .list();
+        tx.commit();
+        session.close();
         sceneInfoCache = result;
         return result;
     }
@@ -393,22 +380,20 @@ public class DatabaseManager {
         if (sceneIdCache.containsKey(scene_name)) {
             return sceneIdCache.get(scene_name);
         }
-        try (Connection conn = mDataSource.getConnection()) {
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT id FROM p_scene_info WHERE scene_name = ?");
-            Pstmt.setString(1, scene_name);
-            ResultSet resultSet = Pstmt.executeQuery();
-            if (resultSet.next()) {
-                int id = resultSet.getInt("id");
-                sceneIdCache.put(scene_name, id);
-                return id;
-            } else {
-                return -1;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        int id;
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        SceneInfo sceneInfo = (SceneInfo) session.createQuery("from SceneInfo where sceneName = ?")
+                .setString(0, scene_name).uniqueResult();
+        if (sceneInfo != null) {
+            id = sceneInfo.getId();
+            sceneIdCache.put(scene_name, id);
+        } else {
+            id = -1;
         }
-        return -1;
+        tx.commit();
+        session.close();
+        return id;
     }
 
     /**
@@ -418,19 +403,14 @@ public class DatabaseManager {
      * @return 返回场景对应地图的字节数组, 若场景地图不存在, 返回null
      */
     public byte[] getSceneMap(String scene_name) {
-        try (Connection conn = mDataSource.getConnection()) {
-            PreparedStatement Pstmt = conn.prepareStatement
-                    ("SELECT scene_map FROM p_scene_info WHERE scene_name = ?");
-            Pstmt.setString(1, scene_name);
-            ResultSet resultSet = Pstmt.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getBytes("scene_map");
-            } else {
-                return null;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
+        Session session = HibernateUtil.getSession();
+        Transaction tx = session.beginTransaction();
+        byte[] result = (byte[]) session
+                .createQuery("select sceneMap from SceneInfo where sceneName = ?")
+                .setString(0, scene_name)
+                .uniqueResult();
+        tx.commit();
+        session.close();
+        return result;
     }
 }

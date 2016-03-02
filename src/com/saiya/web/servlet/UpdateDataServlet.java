@@ -43,8 +43,8 @@ public class UpdateDataServlet extends HttpServlet {
         req.setCharacterEncoding("utf-8");
         String updateType = req.getParameter("updateType");
         String sceneName = req.getParameter("sceneName");
-        float location_x = Float.parseFloat(req.getParameter("location_x"));
-        float location_y = Float.parseFloat(req.getParameter("location_y"));
+        double location_x = Double.parseDouble(req.getParameter("location_x"));
+        double location_y = Double.parseDouble(req.getParameter("location_y"));
 
         //更新Wifi指纹
         if (updateType.equals(UPDATE_WIFI)) {
@@ -56,8 +56,8 @@ public class UpdateDataServlet extends HttpServlet {
 
         //更新地磁指纹
         if (updateType.equals(UPDATE_GEOMAGNETIC)){
-            float geomagnetic_y = Float.parseFloat(req.getParameter("geomagnetic_y"));
-            float geomagnetic_z = Float.parseFloat(req.getParameter("geomagnetic_z"));
+            double geomagnetic_y = Double.parseDouble(req.getParameter("geomagnetic_y"));
+            double geomagnetic_z = Double.parseDouble(req.getParameter("geomagnetic_z"));
             updateSucceed = databaseManager.updateGeoFingerprint
                     (sceneName, location_x, location_y, geomagnetic_y, geomagnetic_z);
         }
