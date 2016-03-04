@@ -29,7 +29,7 @@ public class UploadMapServlet extends HttpServlet{
             throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String sceneName = URLDecoder.decode(req.getHeader("sceneName"), "utf-8");
-        float scale = Float.parseFloat(req.getHeader("scale"));
+        double scale = Double.parseDouble(req.getHeader("scale"));
         Part part = req.getPart("sceneMap");
         byte[] mapBytes = null;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {

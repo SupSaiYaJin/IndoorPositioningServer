@@ -3,8 +3,6 @@ package com.saiya.dao.hbm;
 import javax.persistence.*;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * 场景信息实体类
@@ -30,24 +28,19 @@ public class SceneInfo {
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastUpdateTime;
 
-    @OneToMany(targetEntity = WifiFingerprint.class, cascade = CascadeType.ALL)
-    @JoinColumn(name = "scene_id", referencedColumnName = "id")
-    private Set<WifiFingerprint> wifiFingerprints = new HashSet<>();
-
-    @OneToMany(targetEntity = GeoFingerprint.class, cascade = CascadeType.ALL)
-    @JoinColumn(name = "scene_id", referencedColumnName = "id")
-    private Set<GeoFingerprint> geoFingerprints = new HashSet<>();
-
     public SceneInfo() {}
 
-    public SceneInfo(String sceneName, double scale, Date lastUpdateTime) {
+    public SceneInfo(int id, String sceneName, double scale, Date lastUpdateTime) {
+        this.id = id;
         this.sceneName = sceneName;
         this.scale = scale;
         this.lastUpdateTime = lastUpdateTime;
     }
 
-    public SceneInfo(String sceneName, double scale) {
-        this(sceneName, scale, null);
+    public SceneInfo(int id, String sceneName, double scale) {
+        this.id = id;
+        this.sceneName = sceneName;
+        this.scale = scale;
     }
 
     public int getId() {
@@ -88,14 +81,6 @@ public class SceneInfo {
 
     public void setLastUpdateTime(Date lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
-    }
-
-    public Set<WifiFingerprint> getWifiFingerprints() {
-        return wifiFingerprints;
-    }
-
-    public Set<GeoFingerprint> getGeoFingerprints() {
-        return geoFingerprints;
     }
 
     @Override
