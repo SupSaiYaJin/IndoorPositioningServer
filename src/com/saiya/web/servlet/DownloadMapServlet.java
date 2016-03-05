@@ -18,7 +18,8 @@ import java.io.OutputStream;
 @WebServlet(name = "DownloadMapServlet", urlPatterns = "/positioning/downloadmap")
 public class DownloadMapServlet extends HttpServlet {
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String sceneName = req.getParameter("sceneName");
         byte[] mapBytes = databaseManager.getSceneMap(sceneName);
@@ -26,7 +27,7 @@ public class DownloadMapServlet extends HttpServlet {
         resp.setCharacterEncoding("utf-8");
         resp.setHeader("Content-Disposition","attachment; filename=\"" + sceneName + ".jpg\"");
         resp.setContentType("image/jpeg");
-        if(mapBytes == null) {
+        if (mapBytes == null) {
             resp.setContentLength(0);
             return;
         }

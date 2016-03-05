@@ -36,21 +36,22 @@ public class LocateServlet extends HttpServlet {
     public static final int USE_GEOMAGNETIC_ONLY = 2;
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
         req.setCharacterEncoding("utf-8");
         String sceneName = req.getParameter("sceneName");
         int locateType = Integer.parseInt(req.getParameter("locateType"));
         String mac;
         String rssi;
-        float geomagnetic_y;
-        float geomagnetic_z;
-        float[] result;
+        double geomagnetic_y;
+        double geomagnetic_z;
+        double[] result;
         switch (locateType) {
             case USE_ALL_METHOD:
                 mac = req.getParameter("mac");
                 rssi = req.getParameter("rssi");
-                geomagnetic_y = Float.parseFloat(req.getParameter("geomagnetic_y"));
-                geomagnetic_z = Float.parseFloat(req.getParameter("geomagnetic_z"));
+                geomagnetic_y = Double.parseDouble(req.getParameter("geomagnetic_y"));
+                geomagnetic_z = Double.parseDouble(req.getParameter("geomagnetic_z"));
                 result = Algorithms.locateOnAll(sceneName, mac, rssi,
                         geomagnetic_y, geomagnetic_z);
                 break;
@@ -60,17 +61,18 @@ public class LocateServlet extends HttpServlet {
                 result = Algorithms.locateOnWifi(sceneName, mac, rssi);
                 break;
             case USE_GEOMAGNETIC_ONLY:
-                geomagnetic_y = Float.parseFloat(req.getParameter("geomagnetic_y"));
-                geomagnetic_z = Float.parseFloat(req.getParameter("geomagnetic_z"));
+                geomagnetic_y = Double.parseDouble(req.getParameter("geomagnetic_y"));
+                geomagnetic_z = Double.parseDouble(req.getParameter("geomagnetic_z"));
                 result = Algorithms.locateOnGeomagnetic(sceneName, geomagnetic_y, geomagnetic_z);
                 break;
             default:
-                result = new float[2];
+                result = new double[2];
                 break;
         }
 
         resp.setContentType("application/json");
-        String responseJSON = String.format("{\"result_x\":%f, \"result_y\":%f}", result[0], result[1]);
+        String responseJSON = String.format
+                ("{\"result_x\":%f, \"result_y\":%f}", result[0], result[1]);
         PrintWriter out = resp.getWriter();
         out.print(responseJSON);
         out.flush();
