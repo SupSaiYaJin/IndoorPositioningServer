@@ -9,7 +9,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URLDecoder;
 
@@ -27,10 +29,22 @@ public class UploadMapServlet extends HttpServlet{
             throws ServletException, IOException {
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         String sceneName = URLDecoder.decode(req.getHeader("sceneName"), "utf-8");
-        float scale = Float.parseFloat(req.getHeader("scale"));
+        double scale = Double.parseDouble(req.getHeader("scale"));
         Part part = req.getPart("sceneMap");
-        boolean updateSucceed = databaseManager.updateSceneMap
-                (sceneName, scale, part.getInputStream());
+        byte[] mapBytes = null;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            int bufSize = 1024;
+            byte[] buffer = new byte[bufSize];
+            int len;
+            InputStream in = part.getInputStream();
+            while ((len = in.read(buffer, 0, bufSize)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            mapBytes = out.toByteArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        boolean updateSucceed = databaseManager.updateSceneMap(sceneName, scale, mapBytes);
 
         resp.setContentType("application/json");
         String responseJSON = String.format("{\"uploadSucceed\":%b}", updateSucceed);

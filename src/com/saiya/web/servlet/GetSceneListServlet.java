@@ -1,7 +1,7 @@
 package com.saiya.web.servlet;
 
 import com.saiya.dao.DatabaseManager;
-import com.saiya.service.location.SceneInfo;
+import com.saiya.dao.hbm.SceneInfo;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -34,7 +34,7 @@ public class GetSceneListServlet extends HttpServlet{
             stringBuilder.append("\"scale\":");
             stringBuilder.append(info.getScale()).append(",");
             stringBuilder.append("\"lastUpdateTime\":");
-            stringBuilder.append(info.getLastUpdateTime());
+            stringBuilder.append(info.getLastUpdateTime().getTime());
             stringBuilder.append("},");
         }
         stringBuilder.deleteCharAt(stringBuilder.length() - 1);
