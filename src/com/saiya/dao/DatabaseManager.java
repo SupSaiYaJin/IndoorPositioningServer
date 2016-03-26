@@ -10,10 +10,9 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 负责所有与数据库有关的操作
@@ -50,6 +49,11 @@ public class DatabaseManager {
      */
     public static final int DUPLICATE_USERNAME = 4;
 
+    /**
+     * 场景个数
+     */
+    private static long sceneCount = 0;
+
     private SessionFactory sessionFactory;
 
     public void setSessionFactory(SessionFactory sessionFactory) {
@@ -58,7 +62,7 @@ public class DatabaseManager {
 
     public DatabaseManager() {}
 
-    private static DatabaseManager databaseManager;
+    private static volatile DatabaseManager databaseManager;
 
     /**
      * 缓存WiFi位置指纹
@@ -73,7 +77,7 @@ public class DatabaseManager {
     /**
      * 缓存场景ID
      */
-    private static Map<String, Integer> sceneIdCache;
+    private static Map<String, SceneInfo> sceneIdCache;
 
     /**
      * 缓存场景信息列表
@@ -81,12 +85,14 @@ public class DatabaseManager {
     private static List<SceneInfo> sceneInfoCache;
 
     static {
-        wifiFingerprintCache = new HashMap<>();
-        geoFingerprintCache = new HashMap<>();
-        sceneIdCache = new HashMap<>();
-        sceneInfoCache = new ArrayList<>();
+        wifiFingerprintCache = new ConcurrentHashMap<>();
+        geoFingerprintCache = new ConcurrentHashMap<>();
+        sceneIdCache = new ConcurrentHashMap<>();
+        sceneInfoCache = new CopyOnWriteArrayList<>();
+/*        ApplicationContext applicationContext
+                = new ClassPathXmlApplicationContext("applicationContext.xml");*/
         ApplicationContext applicationContext
-                = new ClassPathXmlApplicationContext("applicationContext.xml");
+                = new ClassPathXmlApplicationContext("testApplicationContext.xml");
         databaseManager = (DatabaseManager) applicationContext.getBean("databaseManager");
     }
 
@@ -148,6 +154,45 @@ public class DatabaseManager {
             e.printStackTrace();
             return UNEXPECTED_ERROR;
         }
+    }
+
+    /**
+     * 获取数据库中场景的个数
+     * @return 返回场景个数
+     */
+    @Transactional
+    private long getNumberOfScenes() {
+        Session session = sessionFactory.getCurrentSession();
+        return (Long) session.createQuery("select count(id) from SceneInfo").uniqueResult();
+    }
+    /**
+     * 对每个场景返回一个WiFi指纹,作为对比数据
+     * @return 每个场景的一个WiFi指纹
+     */
+    @Transactional
+    public List<WifiFingerprint> getSceneWifiFpSample() {
+        if (sceneCount == 0) {
+            sceneCount = getNumberOfScenes();
+        }
+        if (wifiFingerprintCache.size() == sceneCount) {
+            List<WifiFingerprint> result = new ArrayList<>();
+            Set<String> set = wifiFingerprintCache.keySet();
+            for (String str : set) {
+                result.add(wifiFingerprintCache.get(str).get(0));
+            }
+            return result;
+        }
+        Session session = sessionFactory.getCurrentSession();
+        List<WifiFingerprint> wifiFingerprints = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Object[]> lists = (List<Object[]>) session.createQuery
+                ("select sceneId, mac, count(id) " +
+                "from WifiFingerprint group by sceneId")
+                .list();
+        for (Object[] list : lists) {
+            wifiFingerprints.add(new WifiFingerprint((Integer) list[0], (String) list[1]));
+        }
+        return wifiFingerprints;
     }
 
     /**
@@ -251,7 +296,8 @@ public class DatabaseManager {
         boolean isExisted = true;
         Session session = sessionFactory.getCurrentSession();
         SceneInfo sceneInfo = (SceneInfo) session
-                .createQuery("select new SceneInfo(id, sceneName, scale)from SceneInfo where sceneName = ?")
+                .createQuery("select new SceneInfo(id, sceneName, scale, lastUpdateTime) " +
+                        "from SceneInfo where sceneName = ?")
                 .setString(0, scene_name).uniqueResult();
         if (sceneInfo == null) {
             sceneInfo = new SceneInfo();
@@ -264,7 +310,9 @@ public class DatabaseManager {
         sceneInfo.setSceneMap(mapBytes);
         if (!isExisted) {
             session.save(sceneInfo);
+            ++sceneCount;
         } else {
+            sceneInfo.setLastUpdateTime(new Date(System.currentTimeMillis()));
             session.update(sceneInfo);
         }
         sceneInfoCache.clear();
@@ -341,16 +389,37 @@ public class DatabaseManager {
     @Transactional(readOnly = true)
     public int getSceneId(String scene_name) {
         if (sceneIdCache.containsKey(scene_name)) {
-            return sceneIdCache.get(scene_name);
+            return sceneIdCache.get(scene_name).getId();
         }
         Session session = sessionFactory.getCurrentSession();
-        SceneInfo sceneInfo = (SceneInfo) session.createQuery("from SceneInfo where sceneName = ?")
+        SceneInfo sceneInfo = (SceneInfo) session.createQuery
+                ("select new SceneInfo(id, sceneName, scale, lastUpdateTime) from SceneInfo where sceneName = ?")
                 .setString(0, scene_name).uniqueResult();
         if (sceneInfo != null) {
-            sceneIdCache.put(scene_name, sceneInfo.getId());
+            sceneIdCache.put(scene_name, sceneInfo);
             return sceneInfo.getId();
         } else {
             return -1;
+        }
+    }
+
+    /**
+     * 根据场景ID得到场景名
+     * @param scene_id 场景ID
+     * @return 返回场景名
+     */
+    @Transactional
+    public SceneInfo getSceneInfo(int scene_id) {
+        Session session = sessionFactory.getCurrentSession();
+        SceneInfo sceneInfo = (SceneInfo) session.createQuery
+                ("select new SceneInfo(id, sceneName, scale, lastUpdateTime) " +
+                        "from SceneInfo where id = ?")
+                .setInteger(0, scene_id).uniqueResult();
+        if (sceneInfo != null) {
+            sceneIdCache.put(sceneInfo.getSceneName(), sceneInfo);
+            return sceneInfo;
+        } else {
+            return null;
         }
     }
 
