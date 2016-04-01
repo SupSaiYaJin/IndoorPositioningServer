@@ -60,6 +60,9 @@ public class DatabaseManager {
         this.sessionFactory = sessionFactory;
     }
 
+    /**
+     * 不要使用!
+     */
     public DatabaseManager() {}
 
     private static volatile DatabaseManager databaseManager;
@@ -84,20 +87,49 @@ public class DatabaseManager {
      */
     private static List<SceneInfo> sceneInfoCache;
 
-    static {
+    /**
+     * 测试时设为false以使用JDBC连接数据库,发布时设为true以使用Tomcat数据源连接数据库,这会使相关Test失效
+     */
+    private static boolean isRelease = true;
+
+    /**
+     * 设置是否为发行版
+     * @param value true为发行版(默认值),false为测试版
+     */
+    public static void setIsRelease(boolean value) {
+        isRelease = value;
+    }
+
+    /**
+     * 初始化操作,一定要在使用前调用
+     */
+    public static void init() {
         wifiFingerprintCache = new ConcurrentHashMap<>();
         geoFingerprintCache = new ConcurrentHashMap<>();
         sceneIdCache = new ConcurrentHashMap<>();
         sceneInfoCache = new CopyOnWriteArrayList<>();
-/*        ApplicationContext applicationContext
-                = new ClassPathXmlApplicationContext("applicationContext.xml");*/
-        ApplicationContext applicationContext
-                = new ClassPathXmlApplicationContext("testApplicationContext.xml");
+        ApplicationContext applicationContext;
+        if (isRelease) {
+            applicationContext = new ClassPathXmlApplicationContext("applicationContext.xml");
+        } else {
+            applicationContext = new ClassPathXmlApplicationContext("testApplicationContext.xml");
+        }
         databaseManager = (DatabaseManager) applicationContext.getBean("databaseManager");
     }
 
     public static DatabaseManager getInstance() {
-        return databaseManager;
+        if (databaseManager == null) {
+            synchronized (DatabaseManager.class) {
+                if (databaseManager == null) {
+                    init();
+                    return databaseManager;
+                } else {
+                    return databaseManager;
+                }
+            }
+        } else {
+            return databaseManager;
+        }
     }
 
     /**
