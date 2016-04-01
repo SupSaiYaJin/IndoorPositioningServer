@@ -37,12 +37,6 @@ public class SceneInfo {
         this.lastUpdateTime = lastUpdateTime;
     }
 
-    public SceneInfo(int id, String sceneName, double scale) {
-        this.id = id;
-        this.sceneName = sceneName;
-        this.scale = scale;
-    }
-
     public int getId() {
         return id;
     }

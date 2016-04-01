@@ -84,6 +84,15 @@ public class WifiFingerprint {
         this.rssi = rssi;
     }
 
+    public WifiFingerprint() {
+
+    }
+
+    public WifiFingerprint(int sceneId, String mac) {
+        this.sceneId = sceneId;
+        this.mac = mac;
+    }
+
     /**
      * 计算当前WiFi指纹位置与参数指定的指纹信息的欧氏距离
      * @param mac 解析后的MAC地址

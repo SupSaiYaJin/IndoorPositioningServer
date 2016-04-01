@@ -2,12 +2,11 @@ package com.saiya.service.location;
 
 import com.saiya.dao.DatabaseManager;
 import com.saiya.dao.hbm.GeoFingerprint;
+import com.saiya.dao.hbm.SceneInfo;
 import com.saiya.dao.hbm.WifiFingerprint;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * 负责所有定位算法
@@ -19,13 +18,13 @@ public class Algorithms {
     private static final int RETAIN_DECIMAL = 4;
 
     /**
-     * 根据参数中的WiFi指纹信息定位
+     * 获取所有WiFi欧氏距离
      * @param sceneName 场景名称
-     * @param mac 采集到的MAC信息,形式为mac1,mac2...,macN
-     * @param rssi 采集到的RSSI信息,形式为rssi1,rssi2...,rssiN
-     * @return 返回定位结果坐标
+     * @param mac Mac地址
+     * @param rssi 信号强度
+     * @return 欧氏距离List
      */
-    public static double[] locateOnWifi(String sceneName, String mac, String rssi) {
+    public static List<EuclideanDist> getEuclideanDist(String sceneName, String mac, String rssi) {
         List<WifiFingerprint> wifiDataList = DatabaseManager.getInstance()
                 .getWifiFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
@@ -36,28 +35,81 @@ public class Algorithms {
                     rssiToArray(rssi));
             EuclideanDistList.add(new EuclideanDist(location_x, location_y, euclideanDist));
         }
-        return calculateByWeight(EuclideanDistList);
+        return EuclideanDistList;
     }
 
     /**
-     * 根据参数中的地磁指纹信息定位
+     * 获取所有地磁欧氏距离
      * @param sceneName 场景名称
-     * @param geomagnetic_y 采集到的Y方向磁场强度
-     * @param geomagnetic_z 采集到的Z方向磁场强度
-     * @return 返回定位结果坐标
+     * @param geo_y Y方向地磁强度
+     * @param geo_z Z方向地磁强度
+     * @return 欧氏距离List
      */
-    public static double[] locateOnGeomagnetic (String sceneName,
-            double geomagnetic_y, double geomagnetic_z) {
+    public static List<EuclideanDist> getEuclideanDist(String sceneName,
+            double geo_y, double geo_z) {
         List<GeoFingerprint> geoDataList = DatabaseManager.getInstance()
                 .getGeoFingerprint(sceneName);
         List<EuclideanDist> EuclideanDistList = new ArrayList<>();
         for (GeoFingerprint geoFingerprint : geoDataList) {
             double location_x = geoFingerprint.getLocationX();
             double location_y = geoFingerprint.getLocationY();
-            double euclideanDist = geoFingerprint.getEuclideanDist(geomagnetic_y, geomagnetic_z);
+            double euclideanDist = geoFingerprint.getEuclideanDist(geo_y, geo_z);
             EuclideanDistList.add(new EuclideanDist(location_x, location_y, euclideanDist));
         }
-        return calculateByWeight(EuclideanDistList);
+        return EuclideanDistList;
+    }
+
+    /**
+     * 获取终端所在场景名
+     * @param macString MAC地址信息
+     * @return 返回推测的场景对象
+     */
+    public static SceneInfo locateScene(String macString) {
+        List<WifiFingerprint> wifiFingerprints =
+                DatabaseManager.getInstance().getSceneWifiFpSample();
+        String[] macs = macToArray(macString);
+        Set<String> set = new HashSet<>();
+        int max = 0;
+        int scene_id = 0;
+        for (WifiFingerprint wifiFingerprint : wifiFingerprints) {
+            int count = 0;
+            String[] datas = macToArray(wifiFingerprint.getMac());
+            Collections.addAll(set, datas);
+            for (String mac : macs) {
+                if (set.contains(mac)) {
+                    ++count;
+                }
+            }
+            if (count > max) {
+                max = count;
+                scene_id = wifiFingerprint.getSceneId();
+            }
+            set.clear();
+        }
+        return DatabaseManager.getInstance().getSceneInfo(scene_id);
+    }
+
+    /**
+     * 根据参数中的WiFi指纹信息定位
+     * @param sceneName 场景名称
+     * @param mac 采集到的MAC信息,形式为mac1,mac2...,macN
+     * @param rssi 采集到的RSSI信息,形式为rssi1,rssi2...,rssiN
+     * @return 返回定位结果坐标
+     */
+    public static double[] locateOnWifi(String sceneName, String mac, String rssi) {
+        return calculateByWeight(getEuclideanDist(sceneName, mac, rssi));
+    }
+
+    /**
+     * 根据参数中的地磁指纹信息定位
+     * @param sceneName 场景名称
+     * @param geo_y 采集到的Y方向磁场强度
+     * @param geo_z 采集到的Z方向磁场强度
+     * @return 返回定位结果坐标
+     */
+    public static double[] locateOnGeomagnetic (String sceneName,
+                                                double geo_y, double geo_z) {
+        return calculateByWeight(getEuclideanDist(sceneName, geo_y, geo_z));
     }
 
     /**
@@ -88,7 +140,7 @@ public class Algorithms {
      *                          包含信息有对应指纹数据库的位置坐标以及采集到的指纹与数据库指纹的欧氏距离
      * @return 返回定位结果坐标
      */
-    private static double[] calculateByWeight(List<EuclideanDist> EuclideanDistList) {
+    public static double[] calculateByWeight(List<EuclideanDist> EuclideanDistList) {
         if (EuclideanDistList.size() < K) {
             return wrongResult;
         }
